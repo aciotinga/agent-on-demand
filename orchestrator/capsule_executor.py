@@ -242,9 +242,13 @@ class CapsuleExecutor:
                 "error": str(e)
             }
         finally:
-            # Note: We don't remove the volume here because it might be needed
-            # for handoff operations. The caller or cleanup process should handle this.
-            pass
+            # Clean up the session volume after execution completes
+            # Handoffs create new sessions, so the original session can be cleaned up
+            try:
+                self.volume_manager.remove_session_volume(session_id)
+                logger.debug(f"Cleaned up session volume: {session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up session volume {session_id}: {e}")
     
     def _ensure_image_built(self, image_name: str, capsule_path: str) -> bool:
         """Ensure Docker image is built, build if necessary.

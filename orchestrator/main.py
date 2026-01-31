@@ -91,8 +91,14 @@ async def lifespan(app: FastAPI):
     
     yield
     
-    # Shutdown (if needed in the future)
+    # Shutdown - clean up all volumes
     logger.info("Shutting down orchestrator...")
+    try:
+        if volume_manager:
+            removed_count = volume_manager.cleanup_all_volumes()
+            logger.info(f"Cleaned up {removed_count} volume(s) on shutdown")
+    except Exception as e:
+        logger.error(f"Error during shutdown cleanup: {e}", exc_info=True)
 
 
 # Initialize FastAPI app

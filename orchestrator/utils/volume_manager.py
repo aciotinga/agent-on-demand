@@ -133,3 +133,29 @@ class VolumeManager:
             True if volume exists, False otherwise.
         """
         return self.get_volume_path(session_id).exists()
+    
+    def cleanup_all_volumes(self) -> int:
+        """Remove all session volumes.
+        
+        Returns:
+            Number of volumes removed.
+        """
+        if not self.base_path.exists():
+            return 0
+        
+        removed_count = 0
+        try:
+            for item in self.base_path.iterdir():
+                if item.is_dir():
+                    try:
+                        shutil.rmtree(item)
+                        removed_count += 1
+                        logger.debug(f"Removed volume during cleanup: {item}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove volume {item} during cleanup: {e}")
+            
+            logger.info(f"Cleaned up {removed_count} volume(s) on shutdown")
+            return removed_count
+        except Exception as e:
+            logger.error(f"Error during volume cleanup: {e}")
+            return removed_count
