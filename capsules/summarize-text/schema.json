@@ -1,0 +1,22 @@
+{
+  "input": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text to be summarized"
+      }
+    },
+    "required": ["text"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "summary": {
+        "type": "string",
+        "description": "The maximally condensed summary of the input text"
+      }
+    },
+    "required": ["summary"]
+  }
+}

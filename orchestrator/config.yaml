@@ -1,0 +1,23 @@
+# Orchestrator Configuration
+# Maps capsule names to their directory paths and Docker image names
+
+capsules:
+  summarize-text:
+    path: "../capsules/summarize-text"
+    image: "aod-summarize-text"
+
+docker:
+  network: "aod-network"
+  base_path: "./volumes"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+llm:
+  # LiteLLM proxy endpoint for all capsules
+  api_base: "http://192.168.0.186:4000"
+  # API key for OpenAI client
+  # Set this to a valid API key, or set OPENAI_API_KEY environment variable
+  # For LiteLLM proxy, you may need a valid key depending on proxy configuration
+  api_key: ""

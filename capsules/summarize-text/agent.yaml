@@ -1,0 +1,4 @@
+# Agent configuration for summarize-text capsule
+model: "gemini-2.5-flash-lite"
+temperature: 0.3
+max_tokens: 1000
