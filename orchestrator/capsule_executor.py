@@ -114,6 +114,50 @@ class CapsuleExecutor:
                             "error": error_msg
                         }
             
+            # Detect and copy file paths in input_data (for 'file' and 'files' keys)
+            # This allows capsules to accept file paths directly in input
+            import os
+            from pathlib import Path
+            
+            if 'file' in input_data and input_data['file']:
+                file_path = input_data['file']
+                if isinstance(file_path, str) and os.path.exists(file_path):
+                    # It's a valid file path, copy it to /io/input/
+                    filename = Path(file_path).name
+                    if not self.file_manager.copy_to_input(file_path, session_id, filename):
+                        error_msg = f"Failed to copy file from input: {file_path}"
+                        logger.error(error_msg)
+                        return {
+                            "success": False,
+                            "error": error_msg
+                        }
+                    # Update the path in input_data to point to /io/input/
+                    input_data['file'] = f"/io/input/{filename}"
+                    logger.debug(f"Copied file {file_path} to /io/input/{filename} and updated input")
+            
+            if 'files' in input_data and input_data['files']:
+                files_list = input_data['files']
+                if isinstance(files_list, list):
+                    updated_files = []
+                    for file_path in files_list:
+                        if isinstance(file_path, str) and os.path.exists(file_path):
+                            # It's a valid file path, copy it to /io/input/
+                            filename = Path(file_path).name
+                            if not self.file_manager.copy_to_input(file_path, session_id, filename):
+                                error_msg = f"Failed to copy file from input: {file_path}"
+                                logger.error(error_msg)
+                                return {
+                                    "success": False,
+                                    "error": error_msg
+                                }
+                            # Update the path to point to /io/input/
+                            updated_files.append(f"/io/input/{filename}")
+                            logger.debug(f"Copied file {file_path} to /io/input/{filename}")
+                        else:
+                            # Keep the original path (might be a container path already)
+                            updated_files.append(file_path)
+                    input_data['files'] = updated_files
+            
             # Write input JSON
             try:
                 if not self.file_manager.write_input_json(session_id, input_data):

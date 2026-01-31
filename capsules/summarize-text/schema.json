@@ -4,19 +4,52 @@
     "properties": {
       "text": {
         "type": "string",
-        "description": "The text to be summarized"
+        "description": "A single text string to be summarized"
+      },
+      "texts": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "A list of text strings to be summarized separately"
+      },
+      "file": {
+        "type": "string",
+        "description": "Path to a single file to be read and summarized (read as raw text)"
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "A list of file paths to be read and summarized separately (each read as raw text)"
       }
     },
-    "required": ["text"]
+    "anyOf": [
+      { "required": ["text"] },
+      { "required": ["texts"] },
+      { "required": ["file"] },
+      { "required": ["files"] }
+    ]
   },
   "output": {
     "type": "object",
     "properties": {
       "summary": {
         "type": "string",
-        "description": "The maximally condensed summary of the input text"
+        "description": "The maximally condensed summary (returned when a single input is provided)"
+      },
+      "summaries": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of maximally condensed summaries (returned when batch inputs are provided)"
       }
     },
-    "required": ["summary"]
+    "anyOf": [
+      { "required": ["summary"] },
+      { "required": ["summaries"] }
+    ]
   }
 }
