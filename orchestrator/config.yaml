@@ -8,6 +8,9 @@ capsules:
   find-download-link:
     path: "../capsules/find-download-link"
     image: "aod-find-download-link"
+  web-context:
+    path: "../capsules/web-context"
+    image: "aod-web-context"
 
 docker:
   network: "aod-network"

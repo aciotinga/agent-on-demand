@@ -1,0 +1,52 @@
+- name: search_web
+  description: |
+    Search the internet for information related to your research goal. Returns a formatted list of search results with titles and URLs.
+    Each result is presented as a clickable link in the format [Title](URL).
+    
+    Use this to discover relevant web pages to visit. Analyze the titles and URLs to identify the most promising sources for your research.
+  parameters:
+    type: object
+    properties:
+      query:
+        type: string
+        description: |
+          A search query optimized for finding relevant information. Include:
+          - Key terms related to your research goal
+          - Specific topics or concepts
+          - Context that helps narrow down results
+          Example: "Python async programming best practices"
+    required: ["query"]
+
+- name: visit_page
+  description: |
+    Visit a web page and retrieve its content in Markdown format. The page content will include all text and preserved links in the format [Link Text](URL).
+    
+    Use this to read the content of pages you found through search or by following links from previously visited pages.
+    The Markdown output will contain clickable links that you can use to navigate to related pages.
+    
+    Important: Only visit pages that are relevant to your research goal. Follow links strategically to gather comprehensive information.
+  parameters:
+    type: object
+    properties:
+      url:
+        type: string
+        description: |
+          The URL of the web page to visit. Must be a valid HTTP or HTTPS URL.
+          You can use URLs from search results or links found in previously visited pages.
+    required: ["url"]
+
+- name: complete_task
+  description: |
+    Signal that you have completed your research and provide your final summary. This will end the research session.
+    
+    Only call this when you have gathered sufficient information to answer the research goal comprehensively.
+    Your summary should synthesize information from all the pages you visited.
+  parameters:
+    type: object
+    properties:
+      summary:
+        type: string
+        description: |
+          Your comprehensive summary answering the research goal. This should synthesize information from all sources you visited.
+          Be thorough and cite key findings from the pages you explored.
+    required: ["summary"]

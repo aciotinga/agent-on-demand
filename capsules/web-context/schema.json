@@ -1,0 +1,32 @@
+{
+  "input": {
+    "type": "object",
+    "properties": {
+      "research_goal": {
+        "type": "string",
+        "description": "The specific question or topic to research."
+      },
+      "max_steps": {
+        "type": "integer",
+        "default": 10,
+        "description": "Maximum number of tool calls allowed before forced termination."
+      }
+    },
+    "required": ["research_goal"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "final_summary": {
+        "type": "string",
+        "description": "The synthesized answer to the research goal."
+      },
+      "visited_urls": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "A list of all URLs successfully scraped during the session."
+      }
+    },
+    "required": ["final_summary", "visited_urls"]
+  }
+}
