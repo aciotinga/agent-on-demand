@@ -1,0 +1,37 @@
+{
+  "input": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "What to look for (e.g., 'Minecraft Server 1.20.2 jar')"
+      },
+      "required_extension": {
+        "type": "string",
+        "description": "Optional file extension to enforce (e.g., '.jar', '.zip')"
+      },
+      "domain_hint": {
+        "type": "string",
+        "description": "Optional preferred domain (e.g., 'oracle.com')"
+      }
+    },
+    "required": ["query"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "found": { "type": "boolean" },
+      "url": { "type": ["string", "null"] },
+      "metadata": {
+        "type": "object",
+        "properties": {
+          "content_type": { "type": "string" },
+          "file_size_mb": { "type": "number" },
+          "status_code": { "type": "integer" }
+        }
+      },
+      "reasoning": { "type": "string", "description": "Brief explanation of choice or failure" }
+    },
+    "required": ["found"]
+  }
+}

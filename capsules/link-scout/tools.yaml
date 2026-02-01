@@ -1,0 +1,19 @@
+- name: search_web
+  description: Search the internet for download pages or direct links.
+  parameters:
+    type: object
+    properties:
+      query:
+        type: string
+        description: A search term optimized for finding files (e.g. include "download", "release").
+    required: ["query"]
+
+- name: verify_url_headers
+  description: Ping a URL to check if it is valid and get file size/type. Does NOT download the file.
+  parameters:
+    type: object
+    properties:
+      url:
+        type: string
+        description: The candidate URL to check.
+    required: ["url"]
