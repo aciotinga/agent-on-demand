@@ -36,6 +36,15 @@ class CapsuleExecutor:
         self.file_manager = file_manager
         self.volume_manager = volume_manager
         self.config = config
+        self.state_tracker = None
+    
+    def set_state_tracker(self, state_tracker):
+        """Set the state tracker for monitoring.
+        
+        Args:
+            state_tracker: StateTracker instance.
+        """
+        self.state_tracker = state_tracker
     
     def execute_capsule(
         self,
@@ -43,7 +52,8 @@ class CapsuleExecutor:
         input_data: Dict[str, Any],
         input_files: Optional[Dict[str, str]] = None,
         session_id: Optional[str] = None,
-        orchestrator_url: Optional[str] = None
+        orchestrator_url: Optional[str] = None,
+        parent_session_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Execute a capsule with full lifecycle management.
         
@@ -59,6 +69,14 @@ class CapsuleExecutor:
         """
         if session_id is None:
             session_id = str(uuid.uuid4())
+        
+        # Register execution with state tracker
+        if self.state_tracker:
+            self.state_tracker.register_execution(
+                session_id=session_id,
+                capsule_name=capsule_name,
+                parent_session_id=parent_session_id
+            )
         
         # Get capsule configuration
         capsule_config = self.config.get_capsule(capsule_name)
@@ -214,6 +232,8 @@ class CapsuleExecutor:
             )
             
             if not container_id:
+                if self.state_tracker:
+                    self.state_tracker.update_execution_status(session_id, 'failed')
                 return {
                     "success": False,
                     "error": "Failed to start container"
@@ -221,11 +241,21 @@ class CapsuleExecutor:
             
             logger.info(f"Container started: {container_id[:12]}")
             
+            # Update state tracker with container ID
+            if self.state_tracker:
+                self.state_tracker.update_execution_status(
+                    session_id, 
+                    'running', 
+                    container_id=container_id
+                )
+            
             # Wait for container to complete
             exit_code = self.docker_client.wait_for_container(container_id, timeout=3600)
             
             if exit_code is None:
                 # Timeout or error
+                if self.state_tracker:
+                    self.state_tracker.update_execution_status(session_id, 'failed')
                 self.docker_client.stop_capsule(container_id)
                 self.docker_client.remove_capsule(container_id, force=True)
                 return {
@@ -240,6 +270,8 @@ class CapsuleExecutor:
             
             # Check exit code
             if exit_code != 0:
+                if self.state_tracker:
+                    self.state_tracker.update_execution_status(session_id, 'failed')
                 self.docker_client.remove_capsule(container_id, force=True)
                 error_msg = f"Container exited with code {exit_code}"
                 if logs:
@@ -272,6 +304,10 @@ class CapsuleExecutor:
             # Cleanup container
             self.docker_client.remove_capsule(container_id, force=True)
             
+            # Update state tracker
+            if self.state_tracker:
+                self.state_tracker.update_execution_status(session_id, 'completed')
+            
             return {
                 "success": True,
                 "output": output_data,
@@ -281,6 +317,8 @@ class CapsuleExecutor:
             
         except Exception as e:
             logger.error(f"Error executing capsule: {e}", exc_info=True)
+            if self.state_tracker:
+                self.state_tracker.update_execution_status(session_id, 'failed')
             return {
                 "success": False,
                 "error": str(e)

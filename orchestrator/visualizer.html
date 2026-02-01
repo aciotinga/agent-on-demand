@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AOD Orchestrator Visualizer</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0e27;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #header {
+            background: #1a1f3a;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #2a2f4a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4fc3f7;
+        }
+
+        #status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #status-text {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        #container {
+            width: 100vw;
+            height: calc(100vh - 70px);
+            position: relative;
+        }
+
+        #network {
+            width: 100%;
+            height: 100%;
+        }
+
+        #sidebar {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 300px;
+            height: 100%;
+            background: rgba(26, 31, 58, 0.95);
+            border-left: 1px solid #2a2f4a;
+            padding: 1.5rem;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        #sidebar.open {
+            transform: translateX(0);
+        }
+
+        #sidebar h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #4fc3f7;
+        }
+
+        .node-info {
+            background: #1e2338;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid #2a2f4a;
+        }
+
+        .node-info h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: #81c784;
+        }
+
+        .node-info p {
+            font-size: 0.85rem;
+            color: #b0b0b0;
+            margin: 0.25rem 0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .status-running {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-completed {
+            background: #2196f3;
+            color: white;
+        }
+
+        .status-failed {
+            background: #f44336;
+            color: white;
+        }
+
+        .status-idle {
+            background: #757575;
+            color: white;
+        }
+
+        #toggle-sidebar {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: #1a1f3a;
+            border: 1px solid #2a2f4a;
+            color: #4fc3f7;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 999;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        #toggle-sidebar:hover {
+            background: #2a2f4a;
+            border-color: #4fc3f7;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 31, 58, 0.95);
+            border: 1px solid #2a2f4a;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend h3 {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            color: #4fc3f7;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.25rem 0;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>🚀 AOD Orchestrator Visualizer</h1>
+        <div id="status">
+            <div id="status-indicator"></div>
+            <span id="status-text">Connected</span>
+        </div>
+    </div>
+
+    <div id="container">
+        <div id="network"></div>
+        <button id="toggle-sidebar">📊 Details</button>
+        <div id="sidebar">
+            <h2>Execution Details</h2>
+            <div id="node-details"></div>
+        </div>
+        <div class="legend">
+            <h3>Legend</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #4caf50;"></div>
+                <span>Running</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2196f3;"></div>
+                <span>Completed</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f44336;"></div>
+                <span>Failed</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #757575;"></div>
+                <span>Idle</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const ORCHESTRATOR_URL = window.location.origin;
+        const UPDATE_INTERVAL = 1000; // 1 second
+        let network = null;
+        let selectedNodeId = null;
+
+        // Initialize network
+        function initNetwork() {
+            const container = document.getElementById('network');
+            const data = { nodes: new vis.DataSet([]), edges: new vis.DataSet([]) };
+            
+            const options = {
+                nodes: {
+                    shape: 'box',
+                    font: {
+                        color: '#e0e0e0',
+                        size: 16,
+                        face: 'Arial'
+                    },
+                    borderWidth: 2,
+                    shadow: true,
+                    color: {
+                        border: '#4fc3f7',
+                        background: '#1a1f3a',
+                        highlight: {
+                            border: '#4fc3f7',
+                            background: '#2a2f4a'
+                        }
+                    },
+                    margin: 10,
+                    widthConstraint: {
+                        minimum: 150,
+                        maximum: 200
+                    }
+                },
+                edges: {
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 1.2
+                        }
+                    },
+                    color: {
+                        color: '#4fc3f7',
+                        highlight: '#81c784',
+                        hover: '#81c784'
+                    },
+                    width: 2,
+                    smooth: {
+                        type: 'curvedCW',
+                        roundness: 0.2
+                    },
+                    font: {
+                        color: '#b0b0b0',
+                        size: 12,
+                        align: 'middle'
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 200
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        centralGravity: 0.3,
+                        springLength: 200,
+                        springConstant: 0.04,
+                        damping: 0.09
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    zoomView: true,
+                    dragView: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            // Handle node selection
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    selectedNodeId = params.nodes[0];
+                    updateSidebar(selectedNodeId);
+                    document.getElementById('sidebar').classList.add('open');
+                } else {
+                    selectedNodeId = null;
+                    document.getElementById('sidebar').classList.remove('open');
+                }
+            });
+
+            // Handle double-click to toggle sidebar
+            network.on('doubleClick', function(params) {
+                if (params.nodes.length > 0) {
+                    document.getElementById('sidebar').classList.toggle('open');
+                }
+            });
+        }
+
+        // Get status color based on capsule status
+        function getStatusColor(status) {
+            switch(status) {
+                case 'running': return '#4caf50';
+                case 'completed': return '#2196f3';
+                case 'failed': return '#f44336';
+                default: return '#757575';
+            }
+        }
+
+        // Get status badge HTML
+        function getStatusBadge(status) {
+            const statusClass = `status-${status}`;
+            return `<span class="status-badge ${statusClass}">${status.toUpperCase()}</span>`;
+        }
+
+        // Update network visualization
+        function updateNetwork(state) {
+            if (!network) return;
+
+            const nodes = [];
+            const edges = [];
+
+            // Create nodes for each execution (session)
+            state.nodes.forEach(execution => {
+                const status = execution.status;
+                const sessionShort = execution.session_id.substring(0, 8);
+                const statusEmoji = status === 'running' ? '▶' : status === 'completed' ? '✓' : status === 'failed' ? '✗' : '○';
+                
+                nodes.push({
+                    id: execution.session_id,
+                    label: `${execution.capsule_name}\n${statusEmoji} ${sessionShort}...`,
+                    color: {
+                        background: getStatusColor(status),
+                        border: '#4fc3f7',
+                        highlight: {
+                            background: getStatusColor(status),
+                            border: '#81c784'
+                        }
+                    },
+                    title: `${execution.capsule_name}\nSession: ${execution.session_id}\nStatus: ${status}`,
+                    executionData: execution
+                });
+            });
+
+            // Create edges for handoffs (from caller_session_id to target_session_id)
+            state.edges.forEach(handoff => {
+                edges.push({
+                    from: handoff.from,
+                    to: handoff.to,
+                    label: handoff.success ? '' : '✗',
+                    color: handoff.success ? {
+                        color: '#4fc3f7',
+                        highlight: '#81c784'
+                    } : {
+                        color: '#f44336',
+                        highlight: '#f44336'
+                    },
+                    title: `Handoff: ${handoff.caller_capsule} → ${handoff.target_capsule}\n${handoff.success ? 'Success' : 'Failed'}\nTime: ${new Date(handoff.timestamp * 1000).toLocaleTimeString()}`
+                });
+            });
+
+            network.setData({ nodes: nodes, edges: edges });
+        }
+
+        // Update sidebar with node details
+        function updateSidebar(nodeId) {
+            const detailsDiv = document.getElementById('node-details');
+            const state = currentState;
+            
+            if (!state || !nodeId) {
+                detailsDiv.innerHTML = '<p>No node selected</p>';
+                return;
+            }
+
+            // nodeId is now a session_id
+            const execution = state.nodes.find(n => n.session_id === nodeId);
+            if (!execution) {
+                detailsDiv.innerHTML = '<p>Execution not found</p>';
+                return;
+            }
+
+            const startTime = new Date(execution.start_time * 1000).toLocaleString();
+            
+            let html = `
+                <div class="node-info">
+                    <h3>${execution.capsule_name} ${getStatusBadge(execution.status)}</h3>
+                    <p><strong>Session ID:</strong> ${execution.session_id}</p>
+                    <p><strong>Status:</strong> ${execution.status}</p>
+                    <p><strong>Started:</strong> ${startTime}</p>
+                    ${execution.container_id ? `<p><strong>Container:</strong> ${execution.container_id.substring(0, 12)}...</p>` : ''}
+                    ${execution.parent_session_id ? `<p><strong>Parent Session:</strong> ${execution.parent_session_id.substring(0, 8)}...</p>` : ''}
+                </div>
+            `;
+
+            // Show handoffs involving this session
+            const incomingHandoffs = state.edges.filter(e => e.to === nodeId);
+            const outgoingHandoffs = state.edges.filter(e => e.from === nodeId);
+
+            if (incomingHandoffs.length > 0 || outgoingHandoffs.length > 0) {
+                html += '<h3 style="margin-top: 1rem; margin-bottom: 0.5rem;">Handoffs</h3>';
+                
+                if (outgoingHandoffs.length > 0) {
+                    html += '<p style="margin-bottom: 0.5rem;"><strong>Outgoing:</strong></p>';
+                    outgoingHandoffs.forEach(handoff => {
+                        // Find target execution to show capsule name
+                        const targetExecution = state.nodes.find(n => n.session_id === handoff.to);
+                        const targetName = targetExecution ? targetExecution.capsule_name : 'Unknown';
+                        html += `
+                            <div class="node-info">
+                                <p><strong>To:</strong> ${targetName}</p>
+                                <p><strong>Target Session:</strong> ${handoff.to.substring(0, 8)}...</p>
+                                <p><strong>Status:</strong> ${handoff.success ? 'Success' : 'Failed'}</p>
+                                <p><strong>Time:</strong> ${new Date(handoff.timestamp * 1000).toLocaleString()}</p>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (incomingHandoffs.length > 0) {
+                    html += '<p style="margin-bottom: 0.5rem; margin-top: 1rem;"><strong>Incoming:</strong></p>';
+                    incomingHandoffs.forEach(handoff => {
+                        // Find caller execution to show capsule name
+                        const callerExecution = state.nodes.find(n => n.session_id === handoff.from);
+                        const callerName = callerExecution ? callerExecution.capsule_name : handoff.caller_capsule || 'Unknown';
+                        html += `
+                            <div class="node-info">
+                                <p><strong>From:</strong> ${callerName}</p>
+                                <p><strong>Caller Session:</strong> ${handoff.from.substring(0, 8)}...</p>
+                                <p><strong>Status:</strong> ${handoff.success ? 'Success' : 'Failed'}</p>
+                                <p><strong>Time:</strong> ${new Date(handoff.timestamp * 1000).toLocaleString()}</p>
+                            </div>
+                        `;
+                    });
+                }
+            }
+
+            detailsDiv.innerHTML = html;
+        }
+
+        // Fetch state from orchestrator
+        let currentState = null;
+        async function fetchState() {
+            try {
+                const response = await fetch(`${ORCHESTRATOR_URL}/visualizer/state`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const state = await response.json();
+                currentState = state;
+                updateNetwork(state);
+                
+                if (selectedNodeId) {
+                    updateSidebar(selectedNodeId);
+                }
+
+                document.getElementById('status-text').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                console.error('Error fetching state:', error);
+                document.getElementById('status-text').textContent = `Error: ${error.message}`;
+                document.getElementById('status-indicator').style.background = '#f44336';
+            }
+        }
+
+        // Toggle sidebar
+        document.getElementById('toggle-sidebar').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        // Initialize
+        initNetwork();
+        fetchState();
+        setInterval(fetchState, UPDATE_INTERVAL);
+    </script>
+</body>
+</html>

@@ -18,7 +18,8 @@ class HandoffHandler:
         self,
         capsule_executor: CapsuleExecutor,
         file_manager: FileManager,
-        config
+        config,
+        state_tracker=None
     ):
         """Initialize handoff handler.
         
@@ -26,10 +27,12 @@ class HandoffHandler:
             capsule_executor: CapsuleExecutor instance.
             file_manager: FileManager instance.
             config: Config instance.
+            state_tracker: Optional StateTracker instance for monitoring.
         """
         self.capsule_executor = capsule_executor
         self.file_manager = file_manager
         self.config = config
+        self.state_tracker = state_tracker
         # Track active sessions for handoff context
         self._active_sessions: Dict[str, str] = {}  # container_id -> session_id
     
@@ -86,6 +89,15 @@ class HandoffHandler:
         # Create a new session for the target capsule
         target_session_id = str(uuid.uuid4())
         
+        # Get caller capsule name for tracking
+        caller_capsule = None
+        if self.state_tracker:
+            caller_capsule = self.state_tracker.get_capsule_name(caller_session_id)
+            # If caller not found, try to infer from container name pattern
+            # Container names are like "aod-{session_id[:8]}"
+            if not caller_capsule:
+                logger.debug(f"Caller capsule not found for session {caller_session_id}, handoff tracking may be incomplete")
+        
         try:
             # Copy files from caller's handoff/outgoing to target's input
             for filename in input_files.keys():
@@ -115,8 +127,21 @@ class HandoffHandler:
                 input_data=processed_args,
                 input_files=None,  # Files already copied via handoff
                 session_id=target_session_id,
-                orchestrator_url=orchestrator_url
+                orchestrator_url=orchestrator_url,
+                parent_session_id=caller_session_id
             )
+            
+            # Register handoff (only if we have caller capsule name)
+            if self.state_tracker and caller_capsule:
+                self.state_tracker.register_handoff(
+                    caller_session_id=caller_session_id,
+                    caller_capsule=caller_capsule,
+                    target_capsule=target_capsule,
+                    target_session_id=target_session_id,
+                    success=result.get("success", False)
+                )
+            elif self.state_tracker:
+                logger.warning(f"Could not register handoff: caller capsule unknown for session {caller_session_id}")
             
             if not result.get("success"):
                 return result

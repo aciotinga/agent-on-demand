@@ -13,7 +13,7 @@ if str(parent_dir) not in sys.path:
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config_loader import Config
@@ -22,6 +22,7 @@ from orchestrator.file_manager import FileManager
 from orchestrator.utils.volume_manager import VolumeManager
 from orchestrator.capsule_executor import CapsuleExecutor
 from orchestrator.handoff_handler import HandoffHandler
+from orchestrator.state_tracker import StateTracker
 from orchestrator.exceptions import OrchestratorError
 
 # Configure logging
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     global config, docker_client, volume_manager, file_manager
-    global capsule_executor, handoff_handler
+    global capsule_executor, handoff_handler, state_tracker
     
     try:
         logger.info("Initializing orchestrator...")
@@ -74,13 +75,21 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Capsule executor initialized")
         
+        # Initialize state tracker
+        state_tracker = StateTracker()
+        logger.info("State tracker initialized")
+        
         # Initialize handoff handler
         handoff_handler = HandoffHandler(
             capsule_executor=capsule_executor,
             file_manager=file_manager,
-            config=config
+            config=config,
+            state_tracker=state_tracker
         )
         logger.info("Handoff handler initialized")
+        
+        # Set state tracker in capsule executor
+        capsule_executor.set_state_tracker(state_tracker)
         
         logger.info("Orchestrator initialization complete")
         
@@ -116,6 +125,7 @@ volume_manager: Optional[VolumeManager] = None
 file_manager: Optional[FileManager] = None
 capsule_executor: Optional[CapsuleExecutor] = None
 handoff_handler: Optional[HandoffHandler] = None
+state_tracker: Optional[StateTracker] = None
 
 
 # Request/Response models
@@ -280,6 +290,32 @@ async def list_capsules():
         }
     
     return {"capsules": capsules}
+
+
+@app.get("/visualizer/state")
+async def get_visualizer_state():
+    """Get current state for the visualizer.
+    
+    Returns:
+        Dictionary with nodes (capsules) and edges (handoffs).
+    """
+    if not state_tracker:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+    
+    return state_tracker.get_state()
+
+
+@app.get("/visualizer")
+async def get_visualizer():
+    """Serve the visualizer HTML page.
+    
+    Returns:
+        HTML file for the visualizer.
+    """
+    visualizer_path = Path(__file__).parent / "visualizer.html"
+    if not visualizer_path.exists():
+        raise HTTPException(status_code=404, detail="Visualizer not found")
+    return FileResponse(visualizer_path)
 
 
 def main():
