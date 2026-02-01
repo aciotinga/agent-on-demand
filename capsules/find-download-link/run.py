@@ -1,4 +1,4 @@
-"""Bridge: Handles I/O operations and validation for the link-scout capsule."""
+"""Bridge: Handles I/O operations and validation for the find-download-link capsule."""
 
 import json
 import sys

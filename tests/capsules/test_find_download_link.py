@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test script for the link-scout capsule - tests link retrieval functionality."""
+"""Test script for the find-download-link capsule - tests link retrieval functionality."""
 
 import requests
 import json
@@ -60,7 +60,7 @@ def send_request(payload, test_name):
 def test_minecraft_server_jar():
     """Test 1: Find the latest Minecraft server jar."""
     payload = {
-        "capsule": "link-scout",
+        "capsule": "find-download-link",
         "input": {
             "query": "find the latest minecraft server jar",
             "required_extension": ".jar"
@@ -92,7 +92,7 @@ def test_minecraft_server_jar():
 def test_minecraft_server_jar_with_domain():
     """Test 2: Find the latest Minecraft server jar with domain hint."""
     payload = {
-        "capsule": "link-scout",
+        "capsule": "find-download-link",
         "input": {
             "query": "find the latest minecraft server jar",
             "required_extension": ".jar",
@@ -125,7 +125,7 @@ def test_minecraft_server_jar_with_domain():
 def test_simple_query():
     """Test 3: Simple query without extension requirement."""
     payload = {
-        "capsule": "link-scout",
+        "capsule": "find-download-link",
         "input": {
             "query": "find the latest minecraft server jar"
         }
@@ -155,7 +155,7 @@ def test_simple_query():
 
 if __name__ == "__main__":
     print("\n" + "="*70)
-    print("LINK-SCOUT CAPSULE TEST SUITE")
+    print("FIND-DOWNLOAD-LINK CAPSULE TEST SUITE")
     print("="*70)
     
     results = []

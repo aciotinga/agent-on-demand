@@ -1,4 +1,4 @@
-"""Main logic for the link-scout capsule."""
+"""Main logic for the find-download-link capsule."""
 
 import os
 import json
@@ -151,7 +151,7 @@ def validate_url(result: Dict, required_extension: Optional[str] = None, domain_
 
 
 def execute(input_data: dict) -> dict:
-    """Execute the link-scout capsule.
+    """Execute the find-download-link capsule.
     
     Args:
         input_data: Dictionary containing:
@@ -222,8 +222,8 @@ def execute(input_data: dict) -> dict:
         {"role": "user", "content": user_message}
     ]
     
-    # Agent execution loop (max 10 iterations to prevent infinite loops)
-    max_iterations = 10
+    # Agent execution loop (max 20 iterations to prevent infinite loops)
+    max_iterations = 20
     iteration = 0
     found_url = None
     found_metadata = None

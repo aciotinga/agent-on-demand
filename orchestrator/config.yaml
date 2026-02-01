@@ -5,9 +5,9 @@ capsules:
   summarize-text:
     path: "../capsules/summarize-text"
     image: "aod-summarize-text"
-  link-scout:
-    path: "../capsules/link-scout"
-    image: "aod-link-scout"
+  find-download-link:
+    path: "../capsules/find-download-link"
+    image: "aod-find-download-link"
 
 docker:
   network: "aod-network"
