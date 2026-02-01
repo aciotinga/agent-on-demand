@@ -91,6 +91,18 @@ async def lifespan(app: FastAPI):
         # Set state tracker in capsule executor
         capsule_executor.set_state_tracker(state_tracker)
         
+        # Rebuild all capsule containers on startup
+        logger.info("Rebuilding all capsule containers on startup...")
+        for capsule_name, capsule_config in config.capsules.items():
+            image_name = capsule_config['image']
+            capsule_path = capsule_config['path']
+            logger.info(f"Rebuilding container for capsule: {capsule_name} (image: {image_name})")
+            success = docker_client.build_capsule(image_name, capsule_path)
+            if success:
+                logger.info(f"Successfully rebuilt container for capsule: {capsule_name}")
+            else:
+                logger.warning(f"Failed to rebuild container for capsule: {capsule_name}")
+        
         logger.info("Orchestrator initialization complete")
         
     except Exception as e:

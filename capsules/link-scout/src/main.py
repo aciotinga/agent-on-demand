@@ -6,7 +6,7 @@ from pathlib import Path
 from openai import OpenAI
 import yaml
 from typing import Dict, List, Any, Optional
-from capabilities import search_web, verify_url_headers
+from capabilities import search_web, verify_url_headers, extract_page_links
 
 
 def load_agent_config():
@@ -95,6 +95,16 @@ def execute_function_call(function_name: str, arguments: Dict[str, Any]) -> Any:
         url = arguments.get("url", "")
         result = verify_url_headers(url)
         return json.dumps(result, indent=2)
+    
+    elif function_name == "extract_page_links":
+        url = arguments.get("url", "")
+        filter_pattern = arguments.get("filter_pattern")
+        results = extract_page_links(url, filter_pattern=filter_pattern)
+        return json.dumps(results, indent=2)
+    
+    elif function_name == "submit_result":
+        # This is handled specially in the main loop - just return acknowledgment
+        return json.dumps({"status": "received", "message": "Result submitted successfully"})
     
     else:
         return json.dumps({"error": f"Unknown function: {function_name}"})
@@ -229,7 +239,7 @@ def execute(input_data: dict) -> dict:
                 model=agent_config.get('model', 'gemini-2.5-flash-lite'),
                 messages=messages,
                 tools=functions,
-                tool_choice="auto",
+                tool_choice="required",
                 temperature=agent_config.get('temperature', 0.3),
                 max_tokens=agent_config.get('max_tokens', 2000)
             )
@@ -282,43 +292,43 @@ def execute(input_data: dict) -> dict:
                     "name": function_name
                 })
                 
-                # If this was verify_url_headers, check if we found a valid URL
-                if function_name == "verify_url_headers":
-                    try:
-                        result = json.loads(function_result)
-                        if validate_url(result, required_extension, domain_hint):
-                            found_url = result.get("final_url", "")
-                            content_length = result.get("content_length", 0)
-                            found_metadata = {
-                                "content_type": result.get("content_type", ""),
-                                "file_size_mb": round(content_length / (1024 * 1024), 2) if content_length > 0 else 0,
-                                "status_code": result.get("status_code", 0)
-                            }
-                            reasoning = f"Found valid download URL: {found_url}"
-                            print(f"[DEBUG] Found valid URL: {found_url}", flush=True)
-                            break
-                    except json.JSONDecodeError:
-                        pass
-        else:
-            # No function calls - agent is providing final answer
-            if assistant_message.content:
-                # Try to extract reasoning from the message
-                reasoning = assistant_message.content
-                # Check if the message indicates success or failure
-                content_lower = assistant_message.content.lower()
-                if "found" in content_lower or "success" in content_lower:
-                    # Agent thinks it found something, but we need a verified URL
-                    # Continue the loop to let it verify
-                    pass
-                elif "not found" in content_lower or "failed" in content_lower or "unable" in content_lower:
-                    # Agent gave up
-                    if not found_url:
-                        return {
-                            "found": False,
-                            "url": None,
-                            "metadata": {},
-                            "reasoning": reasoning
+                # Handle submit_result - agent is returning the found URL
+                if function_name == "submit_result":
+                    submitted_url = arguments.get("url", "")
+                    submitted_reasoning = arguments.get("reasoning", "")
+                    
+                    # Verify the submitted URL before accepting it
+                    verification_result = verify_url_headers(submitted_url)
+                    
+                    if validate_url(verification_result, required_extension, domain_hint):
+                        found_url = verification_result.get("final_url", submitted_url)
+                        content_length = verification_result.get("content_length", 0)
+                        found_metadata = {
+                            "content_type": verification_result.get("content_type", ""),
+                            "file_size_mb": round(content_length / (1024 * 1024), 2) if content_length > 0 else 0,
+                            "status_code": verification_result.get("status_code", 0)
                         }
+                        reasoning = submitted_reasoning or f"Found valid download URL: {found_url}"
+                        print(f"[DEBUG] Agent submitted valid URL: {found_url}", flush=True)
+                        break
+                    else:
+                        # URL doesn't meet requirements - tell agent to try again
+                        print(f"[DEBUG] Submitted URL failed validation: {submitted_url}", flush=True)
+                        messages.append({
+                            "role": "user",
+                            "content": f"The URL you submitted ({submitted_url}) does not meet the requirements. Please verify it again with verify_url_headers and ensure it matches all criteria before submitting."
+                        })
+                        continue
+        
+        # With tool_choice="required", we should always have tool_calls
+        # If somehow we don't (shouldn't happen), log a warning and continue
+        if not assistant_message.tool_calls:
+            print(f"[WARNING] No tool calls in iteration {iteration} despite tool_choice='required'", flush=True)
+            messages.append({
+                "role": "user",
+                "content": "You must call a tool in every iteration. Please use search_web, extract_page_links, verify_url_headers, or submit_result."
+            })
+            continue
         
         # If we found a valid URL, break out of the loop
         if found_url:

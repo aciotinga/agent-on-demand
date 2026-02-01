@@ -10,9 +10,35 @@ src_path = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_path))
 
 # Import execute function
+# #region agent log
+import json
+log_path = Path("/tmp/debug.log") if Path("/tmp").exists() else Path("/app/debug.log")
+try:
+    with open(log_path, "a") as f:
+        f.write(json.dumps({"sessionId":"debug-session","runId":"pre-import","hypothesisId":"A","location":"run.py:13","message":"Before import attempt","data":{"pythonPath":sys.path},"timestamp":__import__("time").time()}) + "\n")
+except: pass
+# #endregion
 try:
     from main import execute
+    # #region agent log
+    try:
+        with open(log_path, "a") as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"pre-import","hypothesisId":"A","location":"run.py:15","message":"Import successful","data":{},"timestamp":__import__("time").time()}) + "\n")
+    except: pass
+    # #endregion
 except ImportError as e:
+    # #region agent log
+    try:
+        import subprocess
+        installed = subprocess.check_output(["pip", "list"], text=True, stderr=subprocess.DEVNULL)
+        with open(log_path, "a") as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"pre-import","hypothesisId":"A,B","location":"run.py:17","message":"Import failed - checking installed packages","data":{"error":str(e),"installedPackages":installed[:500]},"timestamp":__import__("time").time()}) + "\n")
+    except Exception as check_err:
+        try:
+            with open(log_path, "a") as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"pre-import","hypothesisId":"A,B","location":"run.py:17","message":"Import failed - could not check packages","data":{"error":str(e),"checkError":str(check_err)},"timestamp":__import__("time").time()}) + "\n")
+        except: pass
+    # #endregion
     print(f"ERROR: Failed to import execute from main: {e}", file=sys.stderr)
     print(f"ERROR: Python path: {sys.path}", file=sys.stderr)
     print(f"ERROR: Looking for main.py in: {src_path}", file=sys.stderr)

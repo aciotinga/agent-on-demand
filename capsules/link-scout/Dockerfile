@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip list | grep -i ddgs || echo "WARNING: ddgs package not found after install"
 
 # Copy capsule code
 COPY . .

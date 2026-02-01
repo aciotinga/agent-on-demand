@@ -1,19 +1,91 @@
 - name: search_web
-  description: Search the internet for download pages or direct links.
+  description: |
+    Search the internet for download pages or direct links. Returns a list of search results.
+    Each result contains:
+    - 'title': The title of the search result page
+    - 'href': The URL of the search result
+    - 'body': A snippet of text from the page
+    
+    Use this to find potential download URLs. Analyze the results carefully:
+    - Look for direct download links in the 'href' field
+    - Check the 'title' and 'body' to identify official sources
+    - If you see a landing page (like GitHub Releases), you may need to construct the direct file URL
+    - Try multiple search queries with different keywords if results are poor
+    
+    Example queries: "Minecraft server 1.20.2 download jar", "Minecraft server latest jar download official"
   parameters:
     type: object
     properties:
       query:
         type: string
-        description: A search term optimized for finding files (e.g. include "download", "release").
+        description: |
+          A search query optimized for finding files. Include:
+          - Software/product name
+          - Version number (if specified)
+          - Keywords like "download", "release", "official"
+          - File extension (e.g., ".jar", ".zip")
+          Example: "Minecraft server 1.20.2 download jar"
     required: ["query"]
 
 - name: verify_url_headers
-  description: Ping a URL to check if it is valid and get file size/type. Does NOT download the file.
+  description: |
+    Verify if a URL is a valid file download by checking HTTP headers. Does NOT download the file.
+    Returns:
+    - 'valid': true if the URL returns a 200-299 status code
+    - 'final_url': The final URL after redirects
+    - 'content_type': The MIME type of the file
+    - 'content_length': The file size in bytes
+    - 'status_code': The HTTP status code
+    
+    Use this to verify candidate URLs from search results. Check multiple candidates before giving up.
   parameters:
     type: object
     properties:
       url:
         type: string
-        description: The candidate URL to check.
+        description: The candidate URL to verify. Should be a direct download link, not a landing page.
     required: ["url"]
+
+- name: extract_page_links
+  description: |
+    Extract all links from a web page. This allows you to navigate from a landing page (like GitHub Releases or a download page) to find actual download links.
+    Returns a list of links found on the page, each with:
+    - 'url': The absolute URL of the link
+    - 'text': The visible text of the link (anchor text)
+    - 'context': Surrounding text context from the page
+    
+    Use this when search results show a landing page that likely contains download links. For example:
+    - If you find a GitHub releases page, use extract_page_links to get all release download links
+    - If you find a download page, use extract_page_links to find the actual file download URLs
+    - You can optionally filter links by extension pattern (e.g., ".jar") to focus on relevant files
+    
+    Workflow: Search → Find landing page → Extract links from page → Verify promising links → Submit result
+  parameters:
+    type: object
+    properties:
+      url:
+        type: string
+        description: The URL of the page to extract links from. Should be a page that likely contains download links.
+      filter_pattern:
+        type: string
+        description: |
+          Optional pattern to filter links (e.g., ".jar", ".zip", ".exe"). 
+          If provided, only links containing this pattern in the URL or link text will be returned.
+          Leave empty to get all links from the page.
+    required: ["url"]
+
+- name: submit_result
+  description: |
+    Submit the final result when you have found a valid download URL. You MUST call this tool to return the found URL.
+    Only call this after you have verified the URL using verify_url_headers and confirmed it meets all requirements.
+    This is the ONLY way to return a successful result - you cannot return results in text messages.
+  parameters:
+    type: object
+    properties:
+      url:
+        type: string
+        description: The verified direct download URL that you found. Must be a working URL that you verified with verify_url_headers.
+      reasoning:
+        type: string
+        description: Brief explanation of how you found this URL and why it's the correct one.
+    required: ["url", "reasoning"]
