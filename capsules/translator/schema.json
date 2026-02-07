@@ -1,0 +1,32 @@
+{
+  "input": {
+    "type": "object",
+    "properties": {
+      "source_output": {
+        "type": "object",
+        "description": "Output from the previous capsule in the workflow"
+      },
+      "target_capsule": {
+        "type": "string",
+        "description": "Name of the target capsule that will receive the transformed input"
+      },
+      "mapping": {
+        "type": "object",
+        "description": "Field mapping from source output fields to target input fields",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "instructions": {
+        "type": "string",
+        "description": "Natural language instructions for how to transform the data"
+      }
+    },
+    "required": ["source_output", "target_capsule"]
+  },
+  "output": {
+    "type": "object",
+    "description": "Transformed input data matching the target capsule's input schema",
+    "additionalProperties": true
+  }
+}

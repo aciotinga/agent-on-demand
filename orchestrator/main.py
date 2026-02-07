@@ -4,6 +4,8 @@ import logging
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 # Handle imports when run directly or as a module
 # Add parent directory to path when running directly
@@ -42,7 +44,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     global config, docker_client, volume_manager, file_manager
-    global capsule_executor, handoff_handler, state_tracker
+    global capsule_executor, handoff_handler, state_tracker, executor
     
     try:
         logger.info("Initializing orchestrator...")
@@ -91,6 +93,10 @@ async def lifespan(app: FastAPI):
         # Set state tracker in capsule executor
         capsule_executor.set_state_tracker(state_tracker)
         
+        # Create thread pool executor for running blocking capsule execution
+        executor = ThreadPoolExecutor(max_workers=10)
+        logger.info("Thread pool executor initialized for concurrent capsule execution")
+        
         # Rebuild all capsule containers on startup
         logger.info("Rebuilding all capsule containers on startup...")
         for capsule_name, capsule_config in config.capsules.items():
@@ -112,9 +118,12 @@ async def lifespan(app: FastAPI):
     
     yield
     
-    # Shutdown - clean up all volumes
+    # Shutdown - clean up all volumes and thread pool
     logger.info("Shutting down orchestrator...")
     try:
+        if executor:
+            executor.shutdown(wait=True)
+            logger.info("Thread pool executor shut down")
         if volume_manager:
             removed_count = volume_manager.cleanup_all_volumes()
             logger.info(f"Cleaned up {removed_count} volume(s) on shutdown")
@@ -138,6 +147,7 @@ file_manager: Optional[FileManager] = None
 capsule_executor: Optional[CapsuleExecutor] = None
 handoff_handler: Optional[HandoffHandler] = None
 state_tracker: Optional[StateTracker] = None
+executor: Optional[ThreadPoolExecutor] = None
 
 
 # Request/Response models
@@ -204,11 +214,21 @@ async def execute_capsule(request: ExecuteRequest):
         
         orchestrator_url = config.get_orchestrator_url()
         
-        result = capsule_executor.execute_capsule(
-            capsule_name=request.capsule,
-            input_data=request.input,
-            input_files=request.files,
-            orchestrator_url=orchestrator_url
+        # Run blocking execute_capsule in thread pool to allow concurrent requests
+        # This is critical for workflow capsules that make HTTP requests back to orchestrator
+        if not executor:
+            raise HTTPException(status_code=503, detail="Thread pool executor not initialized")
+        
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            executor,
+            capsule_executor.execute_capsule,
+            request.capsule,
+            request.input,
+            request.files,
+            None,  # session_id
+            orchestrator_url,
+            None   # parent_session_id
         )
         
         if result.get("success"):
@@ -302,6 +322,39 @@ async def list_capsules():
         }
     
     return {"capsules": capsules}
+
+
+@app.get("/capsules/{capsule_name}/schema")
+async def get_capsule_schema(capsule_name: str):
+    """Get the schema for a specific capsule.
+    
+    Args:
+        capsule_name: Name of the capsule.
+        
+    Returns:
+        Dictionary containing the capsule's schema.json content.
+    """
+    if not config:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+    
+    capsule_config = config.get_capsule(capsule_name)
+    if not capsule_config:
+        raise HTTPException(status_code=404, detail=f"Capsule '{capsule_name}' not found")
+    
+    capsule_path = Path(capsule_config['path'])
+    schema_path = capsule_path / "schema.json"
+    
+    if not schema_path.exists():
+        raise HTTPException(status_code=404, detail=f"Schema not found for capsule '{capsule_name}'")
+    
+    try:
+        import json
+        with open(schema_path, 'r') as f:
+            schema = json.load(f)
+        return schema
+    except Exception as e:
+        logger.error(f"Error reading schema for {capsule_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading schema: {str(e)}")
 
 
 @app.get("/visualizer/state")

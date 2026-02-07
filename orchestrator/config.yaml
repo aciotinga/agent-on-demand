@@ -11,6 +11,12 @@ capsules:
   web-context:
     path: "../capsules/web-context"
     image: "aod-web-context"
+  workflow:
+    path: "../capsules/workflow"
+    image: "aod-workflow"
+  translator:
+    path: "../capsules/translator"
+    image: "aod-translator"
 
 docker:
   network: "aod-network"

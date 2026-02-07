@@ -1,0 +1,5 @@
+# Agent configuration for workflow capsule
+# Note: This capsule does not use an LLM agent, but agent.yaml is required
+model: "gpt-4o-mini"
+temperature: 0.0
+max_tokens: 100

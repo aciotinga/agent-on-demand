@@ -1,0 +1,48 @@
+{
+  "input": {
+    "type": "object",
+    "properties": {
+      "workflow": {
+        "type": "string",
+        "description": "JSON string of workflow definition"
+      },
+      "initial_input": {
+        "type": "object",
+        "description": "Initial input data for the first capsule in the workflow"
+      },
+      "workflow_file": {
+        "type": "string",
+        "format": "file_path",
+        "description": "Path to workflow JSON file (alternative to 'workflow' field)"
+      }
+    },
+    "required": ["initial_input"],
+    "anyOf": [
+      { "required": ["workflow"] },
+      { "required": ["workflow_file"] }
+    ]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "success": { "type": "boolean" },
+      "final_output": { "type": "object" },
+      "steps_executed": { "type": "integer" },
+      "error": { "type": "string" },
+      "step_results": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "step_index": { "type": "integer" },
+            "capsule": { "type": "string" },
+            "success": { "type": "boolean" },
+            "output": { "type": "object" },
+            "error": { "type": "string" }
+          }
+        }
+      }
+    },
+    "required": ["success"]
+  }
+}
